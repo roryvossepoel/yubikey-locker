@@ -50,7 +50,8 @@ if platform.system() == MyOS.WIN:
         m_win32process.CreateProcessAsUser = MagicMock(return_value=[0, 1, 2, 3])
 
         # Test Windows LOCK
-        lock_system(RemovalOption.LOCK)
+        with patch("sciber_yklocker.lib.win.win32api"):
+            lock_system(RemovalOption.LOCK)
 
         m_win32process.CreateProcessAsUser.assert_called_once()
         assert "LockWorkStation" in m_win32process.CreateProcessAsUser.call_args[0][2]
@@ -68,7 +69,8 @@ if platform.system() == MyOS.WIN:
         m_win32process.CreateProcessAsUser = MagicMock(return_value=[0, 1, 2, 3])
 
         # Test Windows LOGOUT
-        lock_system(RemovalOption.LOGOUT)
+        with patch("sciber_yklocker.lib.win.win32api"):
+            lock_system(RemovalOption.LOGOUT)
 
         m_win32process.CreateProcessAsUser.assert_called_once()
         assert (
@@ -217,14 +219,16 @@ if platform.system() == MyOS.WIN:
             win_service = AppServerSvc([""])
 
             mock_svcinit.assert_called_once()
-            mock_win32event.CreateEvent.assert_called_once()
+            assert mock_win32event.CreateEvent.call_count == 2
             mock_socket.setdefaulttimeout.assert_called_once()
 
         return win_service
 
     def AppServerSvc_SvcDoRun(win_service) -> None:
         # Dont go inte the loop but make sure it was called
-        with patch("sciber_yklocker.main.loop_code", MagicMock()) as mock_loop_code:
+        with patch.object(
+            win_service, "run_device_events", MagicMock()
+        ) as mock_loop_code:
             with patch(
                 "sciber_yklocker.main.init_yklocker", MagicMock()
             ) as mock_init_yklocker:

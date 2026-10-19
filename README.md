@@ -8,7 +8,7 @@ For YubiKey users to enable automatic device locking when removing the YubiKey.
 
 
 
-### Possible action to take when a YubiKey is not found
+### Actions on YubiKey removal (Windows) or absence (macOS/Linux)
 | Action        | Windows   | Mac  | Linux (Ubuntu)  |
 | ---           | ---       | ---  | ---    |
 | Nothing       | ✅       | ✅   | ✅    |
@@ -64,7 +64,50 @@ Linux (Ubuntu):  ```cat /var/log/syslog | grep yubikey-locker ```
 
 
 ## Default behavior
-yubikey-locker will check if there is a YubiKey present every 10 seconds. If no command-line arguments / registry values instruments the application to lock the computer it will do nothing.
+### Windows (this fork)
+The service listens for native USB arrival/removal notifications. It performs the
+configured `RemovalOption` once when a YubiKey is disconnected, without periodic
+YubiKey scans. Keys already connected when the service starts are covered because
+the removal event identifies the device itself.
+
+- Starting the service or signing in without a key does **not** lock the computer.
+- Removing a key locks/logs out the active local console session once.
+- Signing in again without a key does not cause repeated locking.
+- Reconnecting the same key rearms its removal action.
+- Other USB devices and duplicate removal notifications are ignored. Removing
+  either of two connected YubiKeys triggers the action, even if another remains.
+- `RemovalOption` retains its existing registry path and Lock/Logout/doNothing
+  values. It is read for each removal. The default remains doNothing.
+- `Timeout` is retained for policy compatibility but is ignored on Windows;
+  removal actions are immediate, with no configured grace period.
+- Pending events are discarded on session transitions, service stop, or if they
+  are more than five seconds old. They are never deliberately retargeted to a
+  newly active session. Failures are logged without stopping the listener.
+
+This is USB removal detection, not verification of which key authenticated the
+user. It allows any Windows sign-in method permitted by your policies, for all
+accounts. RDP/NFC removal is not covered. Disconnecting a dock containing a key,
+or a USB device reset/reconfiguration reported as removal, can also trigger it.
+
+### macOS / Linux
+These platforms retain their existing periodic presence checks (10 seconds by
+default). Without an action configured, the application does nothing.
+
+### Windows validation before deployment
+Build the Windows MSI and test on a physical Windows PC:
+1. Set RemovalOption to Lock, sign in as a local administrator without a key and
+   wait at least a minute: the session must remain usable.
+2. Connect/remove a key: expect one immediate lock. Sign in without the key and
+   confirm there is no repeated lock.
+3. Restart the service with a key attached, then remove it: expect one lock.
+4. Repeat insert/remove; test FIDO-only and composite OTP/FIDO/CCID configurations,
+   unrelated USB devices, two keys, dock removal, and sleep/resume.
+5. Test switching users and lock/unlock around removal. No queued action should
+   affect the newly active session. Also test doNothing and Logout policies.
+6. Check Application log entries from YubiKeyLocker and verify service stop/start.
+
+The automated tests mock Windows APIs; physical USB and session tests are still
+required before production deployment.
 
 
 

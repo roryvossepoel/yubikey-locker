@@ -9,8 +9,8 @@
       <string id="SciberYklocker">Sciber YubiKey Locker Settings</string>
       <string id="SciberYklocker_Help">Policy settings for Sciber YubiKey Locker.
 
-* removalOption sets what action to take when no connected YubiKey is detected.
-* timeout sets at which interval to check for a connected YubiKey.
+* removalOption sets what action to take once when a YubiKey USB removal event is received. Signing in without a key does not trigger an action.
+* timeout is retained for compatibility and ignored by the Windows event-driven version. Removal actions are immediate.
 
 </string>
       <string id="Lock">Lock</string>
@@ -18,7 +18,7 @@
       <string id="doNothing">doNothing</string>
 
       <string id="RemovalOptionLabel">Removal option:</string>
-      <string id="TimeoutLabel">Timeout (seconds):</string>
+      <string id="TimeoutLabel">Timeout (legacy, ignored):</string>
     </stringTable>
     <presentationTable>
       <presentation id="SciberYklocker">
