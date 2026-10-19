@@ -1,5 +1,4 @@
-
-name: sciber-yklocker test and build
+name: Windows tests and build
 on:
   workflow_dispatch:
   pull_request:
@@ -10,31 +9,9 @@ on:
 permissions:
   contents: write # to enable releases
 
-# Create one job per specified OS
 jobs:
   yklocker_build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-24.04, macos-26, windows-2025-vs2026]
-        python-version: ["3.13"]
-        #exclude:
-        #
-        # Define variable names
-        include:
-          - os: windows-2025-vs2026
-            build_filename: yubikey-locker.exe
-            msi_filename:  yubikey-locker.msi
-            toxbuild: build_win
-          - os: ubuntu-24.04
-            build_filename: yubikey-locker-linux
-            toxbuild: build_linux
-          - os: macos-26
-            toxbuild: build_macos
-            build_filename: yubikey-locker-macos
-            build_appname: yubikey-locker-macos.app
-            build_pkgname: yubikey-locker-macos-arm64.pkg
-            install_target_location: /Applications
+    runs-on: windows-2025-vs2026
     # Get access to repo contents
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -43,100 +20,37 @@ jobs:
         with:
           python-version: '3.13'
 
-      - if: matrix.os == 'ubuntu-24.04'
-        name: "Ubuntu specific APT install" # Make sure we install necessary prerequisites
-        run: |
-          sudo apt install -y libpcsclite-dev swig pcscd
-          #sudo unlink /usr/bin/python
-          #sudo ln -s /usr/bin/python3.11 /usr/bin/python
-          #python -V
-          echo ${{github.ref}}
-
-
-      - if: matrix.os == 'macos-26'
-        name: "MacOS specific install" # Make sure we install necessary prerequisites
-        run: |
-          brew install swig
-          uname -m
-          file /usr/bin/python*
-
-      - name: Install dependencies # Common for all OS's
+      - name: Install dependencies
         run: |
           echo ${{github.ref}}
           python -m pip install --upgrade pip
           pip install tox
 
 
-        # Per OS install reqs and run tests
-      - name: Install requirements.txt and run tests for ${{matrix.os}}
+      - name: Install requirements.txt and run tests for Windows
         run: |
           python -m tox
 
-      - name: Build for ${{matrix.os}}
+      - name: Build for Windows
         run: |
-          python -m tox -e ${{matrix.toxbuild}}
+          python -m tox -e build_win
           ls dist
 
-      - if: matrix.os == 'ubuntu-24.04'
-        name: "Ubuntu binary execution test"
-        run: |
-          file dist/${{matrix.build_filename}}
-          dist/${{matrix.build_filename}} -z
-          echo $?
-          cat /var/log/syslog | grep yubikey-locker
-
-      - if: matrix.os == 'macos-26'
-        name: "MacOS rename release binary"
-        run: |
-          mv dist/${{matrix.build_filename}} dist/${{matrix.build_filename}}-arm64
-          file dist/${{matrix.build_filename}}-arm64
-
-      - if: matrix.os == 'macos-26'
-        name: "MacOS binary execution test"
-        run: |
-          file dist/${{matrix.build_appname}}/Contents/MacOS/yubikey-locker-macos
-          dist/${{matrix.build_appname}}/Contents/MacOS/yubikey-locker-macos -z
-          echo $?
-          log show --predicate 'process = "yubikey-locker-macos"' --last 10s
-
-      - if: contains(matrix.os, 'macos')
-        name: "MacOS pkg build"
-        run: |
-          pkgbuild --identifier "io.sciber.yubikeylocker" --install-location ${{matrix.install_target_location}} --component dist/${{matrix.build_appname}} dist/${{matrix.build_pkgname}}
-
-      - if: contains(matrix.os, 'macos')
-        name: "MacOS pkg install"
-        run: |
-          sudo installer -pkg dist/${{matrix.build_pkgname}} -target /Applications -verbose
-
-      - if: matrix.os == 'windows-2025-vs2026'
-        name: "Windows MSI build"
+      - name: "Windows MSI build"
         run: |
           dotnet tool install --global wix --version 5.0.0
           wix.exe build -arch x64 .\src\windows_utils\yubikey-locker.wxs
-          cp .\src\windows_utils\${{matrix.msi_filename}} dist/${{matrix.msi_filename}}
+          cp .\src\windows_utils\yubikey-locker.msi dist/yubikey-locker.msi
           ls dist
 
-      - if: matrix.os == 'windows-2025-vs2026'
-        name: "Windows MSI install"
+      - name: "Windows MSI install"
         run: |
-          $pwd = pwd
-          $distPath = "dist\${{matrix.msi_filename}}"
-          $msi = "$pwd\$distPath"
-          echo $msi
-          file $msi
-          echo "log" > install_log
-          echo "before msiexec"
-          # -RunAsAdmin is a GitHub-actions command to elevate into admin
-          msiexec /i "$msi" /quiet /li install_log #-RunAsAdmin
-          echo "after msiexec"
-          ls
-          type install_log
-          #Start-Sleep -Seconds 20
-          #Get-EventLog -LogName Application -Source YubiKeyLocker -Newest 5 | Select TimeGenerated,ReplacementStrings
+          $msi = (Resolve-Path 'dist/yubikey-locker.msi').Path
+          $process = Start-Process msiexec.exe -ArgumentList @('/i', "`"$msi`"", '/qn', '/norestart', '/l*v', 'install.log') -Wait -PassThru
+          Get-Content install.log
+          if ($process.ExitCode -notin @(0, 3010)) { throw "MSI install failed: $($process.ExitCode)" }
 
-      - if: matrix.os == 'windows-2025-vs2026'
-        name: Include Windows policy templates and documentation
+      - name: Include Windows policy templates and documentation
         shell: pwsh
         run: |
           Copy-Item -Recurse 'src/windows_utils/Administrative template (ADMX)/ADMX' 'dist/PolicyDefinitions'
@@ -146,7 +60,7 @@ jobs:
         name: Upload binaries
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
-          name: ${{ matrix.os }}
+          name: windows-x64
           path: dist/
           retention-days: 7
 
@@ -158,4 +72,11 @@ jobs:
           token: "${{ secrets.GITHUB_TOKEN }}"
           tag_name: "${{github.ref_name}}"
           prerelease: False
-          files: dist/*
+          fail_on_unmatched_files: true
+          files: |
+            dist/yubikey-locker.msi
+            dist/yubikey-locker.exe
+            dist/PolicyDefinitions/SciberYklocker.admx
+            dist/PolicyDefinitions/en-US/SciberYklocker.adml
+            dist/README.md
+            dist/LICENSE
