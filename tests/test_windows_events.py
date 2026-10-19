@@ -150,3 +150,18 @@ def test_final_session_check_prevents_launch_and_releases_token(windows):
     windows.lock_system(RemovalOption.LOCK, session_id=7, still_current=lambda: False)
     windows.win32process.CreateProcessAsUser.assert_not_called()
     windows.win32api.CloseHandle.assert_called_once()
+
+
+def test_missing_policy_is_normal_and_resets_previous_action(windows):
+    windows.winreg.OpenKey.side_effect = FileNotFoundError("not configured")
+    locker = MagicMock()
+    assert windows.reg_query_key("RemovalOption") is False
+    windows.reg_check_removal_option(locker)
+    locker.set_removal_option.assert_called_once_with(RemovalOption.NOTHING)
+    windows.servicemanager.LogInfoMsg.assert_not_called()
+
+
+def test_real_registry_error_is_logged(windows):
+    windows.winreg.OpenKey.side_effect = PermissionError("access denied")
+    assert windows.reg_query_key("RemovalOption") is False
+    windows.servicemanager.LogInfoMsg.assert_called_once()

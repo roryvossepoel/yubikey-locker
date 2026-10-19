@@ -1,7 +1,14 @@
-# Sciber YubiKey Locker
-[![main - tests and build](https://github.com/sciber-io/yubikey-locker/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sciber-io/yubikey-locker/actions/workflows/ci.yml)
+# YubiKey Locker — Windows removal-event fork
+[![main - tests and build](https://github.com/roryvossepoel/yubikey-locker/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/roryvossepoel/yubikey-locker/actions/workflows/ci.yml)
 
-For YubiKey users to enable automatic device locking when removing the YubiKey.
+This fork of [Sciber YubiKey Locker](https://github.com/sciber-io/yubikey-locker)
+locks Windows on actual USB YubiKey removal. Signing in without a key remains
+possible, including local administrator troubleshooting. Original attribution
+and MIT license are retained. macOS/Linux retain the upstream behavior.
+
+PR test installers are available from the Windows artifact in this repository's
+[Actions](https://github.com/roryvossepoel/yubikey-locker/actions). A successful build
+is not a substitute for the physical Windows validation below.
 
 <img src="images/sciber_yklocker.png" alt="YubiKey Autolocker by Sciber" width="250"/>
 
@@ -39,7 +46,7 @@ Linux (Ubuntu):  ```cat /var/log/syslog | grep yubikey-locker ```
 
 ## Manual Installation
 ### Windows
-1. Download and execute yubikey-locker.msi from [releases](https://github.com/sciber-io/yubikey-locker/releases)
+1. Download and execute yubikey-locker.msi from [releases](https://github.com/roryvossepoel/yubikey-locker/releases)
 #### Set registry values
 
 1. Download the .admx and .adml files from [src/windows_utils/Administrative template (ADMX)/](src/windows_utils/Administrative%20template%20(ADMX)/) to `C:\Windows\PolicyDefinitions`
@@ -50,12 +57,12 @@ Linux (Ubuntu):  ```cat /var/log/syslog | grep yubikey-locker ```
         - Turn on to set registry values
 
 ### Mac
-1. Download and execute yubikey-locker-macos.pkg from [releases](https://github.com/sciber-io/yubikey-locker/releases)
+1. Download and execute yubikey-locker-macos.pkg from [releases](https://github.com/roryvossepoel/yubikey-locker/releases)
 2. Download, modify script content if necessary, and execute [src/macos_utils/post_install_script.sh](src/macos_utils/post_install_script.sh)
 3. Perform a logout or a reboot
 
 ### Linux (Ubuntu)
-1. Download yubikey-locker-linux from [releases](https://github.com/sciber-io/yubikey-locker/releases) into  `/home/<your-user>/.sciber/yubikey-locker-linux `
+1. Download yubikey-locker-linux from [releases](https://github.com/roryvossepoel/yubikey-locker/releases) into  `/home/<your-user>/.sciber/yubikey-locker-linux `
 2. Download [src/linux_utils/yubikey-locker.service](src/linux_utils/yubikey-locker.service) to `/etc/systemd/user/yubikey-locker.service`
 3. Modify the service file to specify the correct path to the binary
 4. Enable the service to start on reboot:  ```systemctl enable yubikey-locker --user ```
@@ -78,8 +85,8 @@ the removal event identifies the device itself.
   either of two connected YubiKeys triggers the action, even if another remains.
 - `RemovalOption` retains its existing registry path and Lock/Logout/doNothing
   values. It is read for each removal. The default remains doNothing.
-- `Timeout` is retained for policy compatibility but is ignored on Windows;
-  removal actions are immediate, with no configured grace period.
+- `Timeout` has been removed from the Windows code and ADMX. Existing registry
+  values may remain but are never read; actions are immediate.
 - Pending events are discarded on session transitions, service stop, or if they
   are more than five seconds old. They are never deliberately retargeted to a
   newly active session. Failures are logged without stopping the listener.
@@ -140,3 +147,38 @@ Special thanks to [Jonas Markström](https://github.com/JMarkstrom/) for valuabl
 [MacOS: The check for the Yubikey may cause issues with gpg](https://github.com/sciber-io/yubikey-locker/issues/78)
 ____
 For information regarding how to continue development and build your own binaries see [README-development.md](README_development.md)
+
+
+## Windows policy and upgrade notes (1.0.2.0)
+
+The supplied ADMX/English ADML configure a **computer** policy with one setting:
+`RemovalOption` = `Lock`, `Logout`, or `doNothing`. Disabled or unconfigured means
+no action. Only HKLM is read; HKCU policy was never used by the service.
+
+For local Group Policy, copy SciberYklocker.admx to
+`C:\Windows\PolicyDefinitions` and SciberYklocker.adml to its `en-US` subfolder.
+Enable the policy under Computer Configuration > Administrative Templates >
+Sciber YubiKey Locker Settings and select Lock. For Intune, import the matching
+ADMX/ADML pair and assign the computer setting to a test device group first.
+Existing imported templates/profiles may need to be replaced to remove the old
+required Timeout field; do not delete production assignments before preparing
+the replacement. Existing RemovalOption registry values remain compatible.
+
+For a manual test, run in elevated PowerShell:
+
+```powershell
+$Path = 'HKLM:\SOFTWARE\Policies\Sciber\YubiKey Removal Behavior'
+New-Item -Path $Path -Force | Out-Null
+New-ItemProperty -Path $Path -Name RemovalOption -PropertyType String -Value Lock -Force | Out-Null
+Restart-Service YubiKeyLocker
+Get-Service YubiKeyLocker
+```
+
+Upgrade by installing the new MSI over the test version. Restarting the service
+without upgrading does not remove the obsolete Timeout read in 1.0.1.0.
+The new version does not log a registry error for absent optional policy values.
+Policy changes are read on the next removal event; service restart is not required
+for a change to RemovalOption. To disable actions manually, set it to doNothing.
+
+The fork's MSI/EXE are not code-signed by this workflow. If App Control blocks the
+build, use your normal signing/allowlisting process; do not disable App Control.

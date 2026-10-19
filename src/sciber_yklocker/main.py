@@ -9,21 +9,11 @@ from sciber_yklocker.models.yklock import YkLock
 
 # Import platform specific code
 if platform.system() == MyOS.WIN:
-    from sciber_yklocker.lib.win import (
-        check_service_interruption,
-        reg_check_removal_option,
-        reg_check_timeout,
-        reg_check_updates,
-        win_main,
-    )
+    from sciber_yklocker.lib.win import reg_check_removal_option, win_main
 
 
-# Function to handle interruption signals sent to the program
 def continue_looping(yklocker: YkLock) -> bool:
-    # Only the Windows service we need to check for incoming signals
-    if platform.system() == MyOS.WIN:
-        return check_service_interruption(yklocker.get_service_object())
-
+    # Used only by the macOS/Linux presence polling loop.
     return True
 
 
@@ -35,10 +25,6 @@ def loop_code(yklocker: YkLock) -> None:
 
     while continue_looping(yklocker):
         sleep(yklocker.get_timeout())
-
-        if platform.system() == MyOS.WIN:
-            # Check for any timeout or RemovalOption updates from the registry
-            reg_check_updates(yklocker)
 
         if not yklocker.is_yubikey_connected():
             locking_message = (
@@ -66,7 +52,6 @@ def init_yklocker(removal_option: RemovalOption, timeout: int) -> YkLock:
 
     # If Windows - Check registry to override settings
     if platform.system() == MyOS.WIN:
-        reg_check_timeout(yklocker)
         reg_check_removal_option(yklocker)
 
     return yklocker

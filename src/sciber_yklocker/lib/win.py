@@ -21,8 +21,7 @@ from sciber_yklocker.models.removaloption import RemovalOption
 GUID_DEVINTERFACE_USB_DEVICE = "{A5DCBF10-6530-11D2-901F-00C04FB951ED}"
 
 REG_REMOVALOPTION = "RemovalOption"
-REG_TIMEOUT = "Timeout"
-REG_PATH = r"SOFTWARE\\Policies\\Sciber\\YubiKey Removal Behavior\\"
+REG_PATH = r"SOFTWARE\Policies\Sciber\YubiKey Removal Behavior"
 
 
 def log_message(msg: str) -> None:
@@ -175,7 +174,7 @@ class AppServerSvc(win32serviceutil.ServiceFramework):
             self.ssh, notification_filter, win32con.DEVICE_NOTIFY_SERVICE_HANDLE
         )
         try:
-            log_message("Listening for YubiKey USB removal events; Timeout is ignored")
+            log_message("Listening for YubiKey USB removal events; action is immediate")
             while not self.stopping:
                 result = win32event.WaitForMultipleObjects(
                     (self.hWaitStop, self.hDeviceEvent), False, win32event.INFINITE
@@ -196,59 +195,25 @@ class AppServerSvc(win32serviceutil.ServiceFramework):
             win32gui.UnregisterDeviceNotification(notification)
 
 
-def check_service_interruption(serviceObject: AppServerSvc) -> bool:
-    # Check if hWaitStop has been issued
-    if (
-        win32event.WaitForSingleObject(serviceObject.hWaitStop, 5000)
-        == win32event.WAIT_OBJECT_0
-    ):  # Then stop the loop
-        return False
-    else:
-        return True
-
-
 def reg_query_key(key_name: str):
     try:
-        # Attemt to open the handle to registry
-        key_handle = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, REG_PATH)
-        # QueryValueEx returns a tuple, the value and the type
-        ret = winreg.QueryValueEx(key_handle, key_name)[0]
-        # Close the handle to the key
-        key_handle.Close()
-        return ret
-    except (OSError, TypeError, FileNotFoundError, KeyError) as e:
-        log_message("Error when attempting to read the registry: " + str(e))
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, REG_PATH) as key_handle:
+            return winreg.QueryValueEx(key_handle, key_name)[0]
+    except FileNotFoundError:
+        # An unconfigured installation is valid and defaults to doNothing.
         return False
-
-
-def reg_check_timeout(yklocker) -> int:
-    timeoutValue = int(reg_query_key(REG_TIMEOUT))
-    if timeoutValue is not False:
-        yklocker.set_timeout(timeoutValue)
-    # Return current timeout
-    return yklocker.get_timeout()
+    except (OSError, TypeError, KeyError) as e:
+        log_message(f"Error reading registry value {key_name}: {e}")
+        return False
 
 
 def reg_check_removal_option(yklocker) -> RemovalOption:
-    lockValue = reg_query_key(REG_REMOVALOPTION)
-    if lockValue is not False:
-        yklocker.set_removal_option(lockValue)
-
-    # Return current RemovalOption
+    value = reg_query_key(REG_REMOVALOPTION)
+    # A missing/removed policy means the default, not the previously cached action.
+    if value not in RemovalOption.__members__.values():
+        value = RemovalOption.NOTHING
+    yklocker.set_removal_option(value)
     return yklocker.get_removal_option()
-
-
-def reg_check_updates(yklocker) -> None:
-    # check for changes in the registry
-    timeoutValue = yklocker.get_timeout()
-    removalOption = yklocker.get_removal_option()
-    # Check registry and get the latest values
-    timeoutValue2 = reg_check_timeout(yklocker)
-    removalOption2 = reg_check_removal_option(yklocker)
-
-    if timeoutValue != timeoutValue2 or removalOption != removalOption2:
-        message = f"Updated YubiKeyLocker with RemovalOption {yklocker.get_removal_option()} after {yklocker.get_timeout()} seconds without a detected YubiKey"
-        yklocker.logger(message)
 
 
 def win_main() -> None:
