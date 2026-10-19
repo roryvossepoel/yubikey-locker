@@ -50,11 +50,11 @@ jobs:
           Get-Content install.log
           if ($process.ExitCode -notin @(0, 3010)) { throw "MSI install failed: $($process.ExitCode)" }
 
-      - name: Include Windows policy templates and documentation
+      - name: Include Windows policy templates and license
         shell: pwsh
         run: |
           Copy-Item -Recurse 'src/windows_utils/Administrative template (ADMX)/ADMX' 'dist/PolicyDefinitions'
-          Copy-Item README.md, LICENSE dist/
+          Copy-Item LICENSE dist/
 
       - if: github.event_name != 'release'
         name: Upload binaries
@@ -78,5 +78,4 @@ jobs:
             dist/yubikey-locker.exe
             dist/PolicyDefinitions/SciberYklocker.admx
             dist/PolicyDefinitions/en-US/SciberYklocker.adml
-            dist/README.md
             dist/LICENSE
