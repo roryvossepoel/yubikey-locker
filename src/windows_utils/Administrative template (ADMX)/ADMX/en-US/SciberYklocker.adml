@@ -1,29 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <policyDefinitionResources revision="1.0" schemaVersion="1.0">
-  <displayName>Sciber Policy Definitions</displayName>
-  <description>Sciber Policy Definitions</description>
+  <displayName>YubiKey Locker Policy Definitions</displayName>
+  <description>YubiKey Locker Policy Definitions</description>
   <resources>
     <stringTable>
       <string id="SupportedWindows">Windows 10 or later (desktop editions)</string>
-      <string id="Sciber">Sciber YubiKey Locker</string>
-      <string id="SciberPolicies">Sciber YubiKey Locker Settings</string>
-      <string id="SciberYklocker">Sciber YubiKey Locker Settings</string>
-      <string id="SciberYklocker_Help">Policy settings for Sciber YubiKey Locker.
+      <string id="Sciber">YubiKey Locker</string>
+      <string id="SciberYklocker">Action on YubiKey removal</string>
+      <string id="SciberYklocker_Help">Choose the action to take when a YubiKey is disconnected.
 
 * removalOption sets what action to take once when a YubiKey USB removal event is received. Signing in without a key does not trigger an action.
 Actions are immediate. Only the active local console session is targeted.
 Disabled or not configured: no action. Old Timeout values are ignored.
 
 </string>
-      <string id="Lock">Lock</string>
-      <string id="Logout">Logout</string>
-      <string id="doNothing">doNothing</string>
+      <string id="Lock">Lock workstation</string>
+      <string id="Logout">Sign out</string>
+      <string id="doNothing">Do nothing</string>
 
-      <string id="RemovalOptionLabel">Removal option:</string>
+      <string id="RemovalOptionLabel">Action:</string>
     </stringTable>
     <presentationTable>
       <presentation id="SciberYklocker">
-        <dropdownList refId="RemovalOption" defaultItem="0">RemovalOption:</dropdownList>
+        <dropdownList refId="RemovalOption" defaultItem="0">Action:</dropdownList>
       </presentation>
     </presentationTable>
   </resources>
