@@ -1,10 +1,38 @@
 # YubiKey Locker — Windows removal-event fork
 [![main - tests and build](https://github.com/roryvossepoel/yubikey-locker/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/roryvossepoel/yubikey-locker/actions/workflows/ci.yml)
 
-This fork of [Sciber YubiKey Locker](https://github.com/sciber-io/yubikey-locker)
-locks Windows on actual USB YubiKey removal. Signing in without a key remains
-possible, including local administrator troubleshooting. Original attribution
-and MIT license are retained.
+## Why this fork exists
+
+This Windows fork of [Sciber YubiKey Locker](https://github.com/sciber-io/yubikey-locker)
+is intended for shared PCs where removing a USB YubiKey should lock the session,
+while signing in and working without a YubiKey should remain possible.
+
+Checking repeatedly whether a key is present can lock a session simply because
+no key is connected. That interferes with local account use, including
+administrator troubleshooting, and alternative sign-in methods such as Windows
+Hello or web sign-in where supported and enabled.
+
+**This fork reacts to an actual YubiKey disconnection, not the absence of a key.**
+
+- Sign in without a YubiKey using any method allowed by Windows and your policies:
+  the service does not lock the session merely because no key is connected.
+- Disconnect a USB YubiKey: the configured action runs immediately, with no
+  polling interval or configurable delay. Select **Lock workstation** to lock
+  Windows, **Sign out** to end the session, or **Do nothing**.
+- Sign in again with the key still disconnected: there is no repeated locking.
+
+The ADMX/ADML templates reflect this behavior: **YubiKey Locker → Action on YubiKey
+removal** is the single policy setting. The old **Timeout** setting has been
+removed because the service uses Windows device notifications instead of periodic
+presence checks. Existing Timeout registry values are ignored.
+
+This is not an exemption for administrator accounts or a check of the sign-in
+method: removing a connected YubiKey can trigger the configured action in the
+active local console session even if that user signed in with a password,
+Windows Hello, or web sign-in. The service does not determine which key, if any,
+was used to authenticate.
+
+Original Sciber attribution and the MIT license are retained.
 
 **This fork targets Windows only.** We build and publish Windows x64 packages.
 Linux/macOS source is retained for upstream continuity, but is not maintained,
@@ -21,7 +49,7 @@ is not a substitute for the physical Windows validation below.
 
 
 ### Actions on YubiKey removal
-Choose Lock Computer, Log Out User, or Nothing via computer policy.
+Choose **Lock workstation**, **Sign out**, or **Do nothing** via computer policy.
 
 ### Application logs
 ```powershell
@@ -41,8 +69,8 @@ Get-EventLog -LogName Application -Source YubiKeyLocker | Select TimeGenerated,R
 2. Start "local group policy editor" from Control Panel -> "Edit group policy" and navigate to:
   - "Computer Configuration"
     - "Administrative Templates"
-      - "Sciber YubiKey Locker Settings"
-        - Turn on to set registry values
+      - "YubiKey Locker"
+        - Enable "Action on YubiKey removal" and select the desired action
 
 ## Default behavior
 ### Windows (this fork)
@@ -107,7 +135,7 @@ no action. Only HKLM is read; HKCU policy was never used by the service.
 For local Group Policy, copy SciberYklocker.admx to
 `C:\Windows\PolicyDefinitions` and SciberYklocker.adml to its `en-US` subfolder.
 Enable the policy under Computer Configuration > Administrative Templates >
-Sciber YubiKey Locker Settings and select Lock. For Intune, import the matching
+YubiKey Locker > Action on YubiKey removal and select **Lock workstation**. For Intune, import the matching
 ADMX/ADML pair and assign the computer setting to a test device group first.
 Existing imported templates/profiles may need to be replaced to remove the old
 required Timeout field; do not delete production assignments before preparing
