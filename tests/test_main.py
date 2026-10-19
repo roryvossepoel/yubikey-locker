@@ -34,20 +34,7 @@ def mock_continue_looping(yklocker: YkLock) -> bool:
 
 
 def test_continue_looping_true() -> None:
-    yklocker = YkLock()
-    if platform.system() == MyOS.WIN:
-        with patch(
-            "sciber_yklocker.main.check_service_interruption",
-            MagicMock(return_value=True),
-        ) as mock_check_service_interruption:
-            # MagicMock the serviceObject
-            # Expect the return to be True == continue looping
-            assert continue_looping(yklocker) is True
-
-            mock_check_service_interruption.assert_called_once()
-
-    else:
-        assert continue_looping(yklocker) is True
+    assert continue_looping(YkLock()) is True
 
 
 def test_loop_code_no_yubikey() -> None:
@@ -109,21 +96,13 @@ def test_loop_code_with_yubikey() -> None:
 
 def test_init_yklocker_win() -> None:
     if platform.system() == MyOS.WIN:
-        # Call the function with non-default settings and verify them
         with patch(
-            "sciber_yklocker.main.reg_check_timeout", MagicMock()
-        ) as mock_reg_check_timeout:
-            with patch(
-                "sciber_yklocker.main.reg_check_removal_option", MagicMock()
-            ) as mock_reg_check_removal_option:
-                yklocker = init_yklocker(RemovalOption.LOGOUT, 15)
-
-                # Make sure gets were called but dont enter the functions
-                mock_reg_check_removal_option.assert_called_once()
-                mock_reg_check_timeout.assert_called_once()
-
-        assert yklocker.get_removal_option() == RemovalOption.LOGOUT
-        assert yklocker.get_timeout() == 15
+            "sciber_yklocker.lib.win.reg_query_key", return_value="Lock"
+        ) as query:
+            yklocker = init_yklocker(None, None)
+            assert yklocker.get_removal_option() == RemovalOption.LOCK
+            # No Timeout read, even on startup with only RemovalOption configured.
+            query.assert_called_once_with("RemovalOption")
 
 
 def test_init_yklocker_lx() -> None:

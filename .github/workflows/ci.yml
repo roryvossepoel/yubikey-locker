@@ -135,7 +135,14 @@ jobs:
           #Start-Sleep -Seconds 20
           #Get-EventLog -LogName Application -Source YubiKeyLocker -Newest 5 | Select TimeGenerated,ReplacementStrings
 
-      - if: github.event_name ==  'workflow_dispatch'
+      - if: matrix.os == 'windows-2025-vs2026'
+        name: Include Windows policy templates and documentation
+        shell: pwsh
+        run: |
+          Copy-Item -Recurse 'src/windows_utils/Administrative template (ADMX)/ADMX' 'dist/PolicyDefinitions'
+          Copy-Item README.md, LICENSE dist/
+
+      - if: github.event_name != 'release'
         name: Upload binaries
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:

@@ -4,14 +4,20 @@
     <target prefix="Sciber" namespace="Sciber.Policies"/>
   </policyNamespaces>
   <resources minRequiredRevision="1.0"/>
+  <supportedOn>
+    <definitions>
+      <definition name="SUPPORTED_Windows_10_0_NOSERVER" displayName="$(string.SupportedWindows)"/>
+    </definitions>
+  </supportedOn>
   <categories>
     <category name="Sciber" displayName="$(string.Sciber)"/>
-    <category name="SciberPolicies" displayName="$(string.SciberPolicies)" parentCategory="Sciber"/>
+    <category name="SciberPolicies" displayName="$(string.SciberPolicies)"><parentCategory ref="Sciber"/></category>
   </categories>
   <policies>
-    <policy name="SciberYklocker" class="Both" displayName="$(string.SciberYklocker)" explainText="$(string.SciberYklocker_Help)" presentation="$(presentation.SciberYklocker)" key="Software\Policies\Sciber\YubiKey Removal Behavior">
+    <policy name="SciberYklocker" class="Machine" displayName="$(string.SciberYklocker)" explainText="$(string.SciberYklocker_Help)" presentation="$(presentation.SciberYklocker)" key="Software\Policies\Sciber\YubiKey Removal Behavior">
       <parentCategory ref="SciberPolicies"/>
       <supportedOn ref="Sciber:SUPPORTED_Windows_10_0_NOSERVER"/>
+      <disabledList><item key="Software\Policies\Sciber\YubiKey Removal Behavior" valueName="RemovalOption"><value><string>doNothing</string></value></item></disabledList>
       <elements>
         <enum id="RemovalOption" valueName="RemovalOption" required="true">
           <item displayName="$(string.Lock)">
@@ -30,7 +36,6 @@
             </value>
           </item>
         </enum>
-        <decimal id="Timeout" valueName="Timeout" required="true"/>
       </elements>
     </policy>
   </policies>
