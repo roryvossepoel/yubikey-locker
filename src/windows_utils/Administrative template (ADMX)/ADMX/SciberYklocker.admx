@@ -11,11 +11,10 @@
   </supportedOn>
   <categories>
     <category name="Sciber" displayName="$(string.Sciber)"/>
-    <category name="SciberPolicies" displayName="$(string.SciberPolicies)"><parentCategory ref="Sciber"/></category>
   </categories>
   <policies>
     <policy name="SciberYklocker" class="Machine" displayName="$(string.SciberYklocker)" explainText="$(string.SciberYklocker_Help)" presentation="$(presentation.SciberYklocker)" key="Software\Policies\Sciber\YubiKey Removal Behavior">
-      <parentCategory ref="SciberPolicies"/>
+      <parentCategory ref="Sciber"/>
       <supportedOn ref="Sciber:SUPPORTED_Windows_10_0_NOSERVER"/>
       <disabledList><item key="Software\Policies\Sciber\YubiKey Removal Behavior" valueName="RemovalOption"><value><string>doNothing</string></value></item></disabledList>
       <elements>
